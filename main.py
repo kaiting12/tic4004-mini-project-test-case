@@ -67,16 +67,63 @@ def test_adding_product_into_cart(page):
         == 1
     ), "Product description not found"
 
+def test_view_all_sorting_options(page):
+    page.goto("https://www.saucedemo.com/")
+    login_standard_user(page)
+    page.locator("[data-test='product_sort_container']").click()
+
+    try:
+        page.wait_for_selector("[data-test='product_sort_container'] option[value='az']", timeout=2000)
+        assert page.locator("[data-test='product_sort_container'] option[value='az']").is_visible(), "Sorting option 'Name (A to Z)' is not visible"
+        assert page.locator("[data-test='product_sort_container'] option[value='za']").is_visible(), "Sorting option 'Name (Z to A)' is not visible"
+        assert page.locator("[data-test='product_sort_container'] option[value='lohi']").is_visible(), "Sorting option 'Price (low to high)' is not visible"
+        assert page.locator("[data-test='product_sort_container'] option[value='hilo']").is_visible(), "Sorting option 'Price (high to low)' is not visible"
+    except Exception as e:
+        assert False, f"Unexpected error: {e}"
+
+
+def test_sort_by_name_z_to_a(page):
+    page.goto("https://www.saucedemo.com/")
+    login_standard_user(page)
+    page.locator("[data-test='product_sort_container']").select_option("za")
+
+    try:
+        page.wait_for_selector('.inventory_list', timeout=5000)
+        item_elements = page.query_selector_all('.inventory_item_name')
+        item_names = [item_element.text_content() for item_element in item_elements]
+        assert sorted(item_names, reverse=True) == item_names, "Product names are not sorted from Z to A"
+    except Exception as e:
+        assert False, f"Unexpected error: {e}"
+
+
+def test_sort_by_price_low_to_high(page):
+    page.goto("https://www.saucedemo.com/")
+    login_standard_user(page)
+    page.locator("[data-test='product_sort_container']").select_option("lohi")
+
+    try:
+        page.wait_for_selector('.inventory_list', timeout=5000)
+        item_elements = page.query_selector_all('.inventory_item_price')
+        item_prices = [item_element.text_content() for item_element in item_elements]
+        item_prices = [float(price[1:]) for price in item_prices]  # Assuming the price format is $X.XX
+        assert sorted(item_prices) == item_prices, "Inventory items are not sorted by price low to high"
+    except Exception as e:
+        assert False, f"Unexpected error: {e}"
+
 
 if __name__ == "__main__":
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(headless=False)
         context = browser.new_context()
         page = context.new_page()
 
         test_standard_user_login(page)
         test_locked_out_user_login(page)
         test_adding_product_into_cart(page)
+        test_view_all_sorting_options(page)
+        test_sort_by_name_z_to_a(page)
+        test_sort_by_price_low_to_high(page)
 
-        print("Everything passed")
+        print("End of tests")
+        context.close()
         browser.close()
